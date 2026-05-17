@@ -1,399 +1,65 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>模擬試験タイマー（統合版・クラシック切替付き）</title>
-  <meta name="theme-color" content="#0b1020">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" href="./icon-192.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <style>
-    :root{--bg:#0b1020;--card:#141a2f;--ink:#e7ecff;--muted:#aab2d7;--accent:#5b8cff;--accent2:#66e3c4}
-    *{box-sizing:border-box} html,body{height:100%}
-    body{margin:0;background:linear-gradient(180deg,#0b1020,#0e1330);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans JP,Arial}
-    .wrap{max-width:960px;margin:20px auto;padding:12px}
-    .panel{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
-    h1{margin:0;font-size:18px}
-    .grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}
-    @media (max-width:900px){.grid{grid-template-columns:1fr}}
-
-    .big{font-variant-numeric:tabular-nums}
-    #titleLabel{font-size:clamp(16px,2.6vw,22px);font-weight:800;display:block;text-align:center;margin:6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #display{font-weight:900;letter-spacing:.02em;margin:2px 0 6px;text-align:center;font-size:clamp(44px,9vw,64px)}
-    #display .sec{font-size:.5em;vertical-align:super;margin-left:.1em;opacity:.9}
-
-    .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center}
-    button{appearance:none;border:1px solid rgba(255,255,255,.18);background:#1b2345;color:#fff;padding:10px 12px;border-radius:12px;font-weight:800;cursor:pointer}
-    button.primary{background:var(--accent);color:#041026;border:none} button.alt{background:var(--accent2);color:#021b17;border:none}
-    button:disabled{opacity:.55;cursor:not-allowed}
-
-    .field{margin-top:10px} .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
-    input[type="time"],textarea,input[type="text"]{width:100%;background:#0b1020;border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:10px;padding:8px}
-    textarea{min-height:160px} .note{color:var(--muted);font-size:12px;margin-top:6px}
-
-    body.ended{background:linear-gradient(180deg,#1f0b0b,#3b1010)}
-    #remain{display:inline-block;font-weight:800;padding:4px 10px;border-radius:8px;background:#fff3cd;color:#a1002d}
-    #remain.overtime{color:#ff4b4b;background:#ffe5e5} .secSmall{font-size:.64em;vertical-align:super}
-
-    /* アナログ時計 */
-    #analogWrap{display:flex;justify-content:center;align-items:center;position:relative;margin:8px auto;width:300px;height:300px}
-    @supports (width: min(75vw, 320px)) { #analogWrap{width:min(75vw,320px);height:min(75vw,320px)} }
-    #analogClock{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
-    #elapsedWrap{position:absolute;right:0;bottom:0;transform:translate(100%,0);text-align:left}
-    #remainWrap{position:absolute;left:0;bottom:0;transform:translate(-100%,0);text-align:right}
-    #elapsed,#remain{font-size:clamp(18px,3.6vw,24px);font-weight:800}
-    /* 工程残り（残りの一段上） */
-    #stepRemainWrap{position:absolute;left:0;bottom:36px;transform:translate(-100%,0);text-align:right}
-    #stepRemain{display:inline-block;font-weight:800;padding:4px 10px;border-radius:8px;background:#e3f2ff;color:#03396c}
-    #stepRemain.overtime{color:#ff4b4b;background:#ffe5e5}
-
-    .row-between{display:flex;justify-content:space-between;align-items:center}
-    #nowClock{font-size:14px;font-weight:600;color:var(--muted)}
-    .switch{display:inline-flex;align-items:center;gap:6px;font-size:13px}
-
-    .sj-window{margin-top:8px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:#0b1020;max-height:120px;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px}
-    #scheduleJump{display:flex;flex-wrap:wrap;gap:6px}
-    .sj-chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#0b1020;border:1px solid rgba(255,255,255,.14);color:#e7ecff;cursor:pointer;user-select:none;font-size:13px;white-space:nowrap;touch-action:manipulation}
-    .sj-chip time{font-variant-numeric:tabular-nums;color:var(--muted)} .sj-chip:hover{border-color:rgba(255,255,255,.28)} .sj-chip.active{outline:2px solid var(--accent)}
-
-    /* 状態表示 */
-    #fatalBanner{display:none;position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#330;color:#fff;border:1px solid #a33;padding:8px;border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
-
-    /* ===== クラシックUI（旧版寄せ） ===== */
-    body.classic{background:#222;color:#fff}
-    body.classic .panel{background:#111;border-color:#333;border-radius:8px;padding:10px}
-    body.classic #titleLabel{font-size:18px}
-    body.classic #display{font-size:56px}
-    body.classic .sj-chip{背景:#111;border-color:#333}
-    body.classic button{border-color:#444;background:#222}
-    body.classic #stepRemain{background:#223b5a;color:#d6ecff}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>時計表示項目等2</title>
+<style>
+body{
+font-family:Arial,sans-serif;
+background:#111;
+color:white;
+text-align:center;
+padding:20px;
+}
+h1{font-size:40px}
+table{
+margin:auto;
+border-collapse:collapse;
+width:80%;
+}
+td,th{
+border:1px solid #666;
+padding:12px;
+font-size:28px;
+}
+tr:nth-child(even){
+background:#222;
+}
+.clock{
+font-size:60px;
+color:#00ff88;
+margin:20px;
+}
+</style>
 </head>
 <body>
-  <div id="fatalBanner">JS エラー: <span id="fatalMsg"></span></div>
 
-  <div class="wrap">
-    <div class="grid">
-      <!-- 表示パネル -->
-      <section class="panel" id="displayPanel">
-        <div class="row-between">
-          <h1>表示</h1>
-          <div id="nowClock">--:--:--</div>
-        </div>
-        <div id="titleLabel">開始時刻 11:00</div>
-        <div id="display" class="big"><span id="hhmm">11:00</span><span class="sec">:00</span></div>
-        <div id="analogWrap">
-          <canvas id="analogClock"></canvas>
-          <div id="stepRemainWrap"><span id="stepRemainLabel">工程残り：</span><span id="stepRemain">0:00<span class="secSmall">:00</span></span></div>
-          <div id="remainWrap"><span id="remainLabel">残り：</span><span id="remain">0:00<span class="secSmall">:00</span></span></div>
-          <div id="elapsedWrap"><span id="elapsedLabel">経過：</span><span id="elapsed">0:00<span class="secSmall">:00</span></span></div>
-        </div>
-        <div class="controls">
-          <button id="startBtn" class="primary">開始</button>
-          <button id="pauseBtn" disabled>一時停止</button>
-          <button id="resumeBtn" disabled>再開</button>
-          <button id="resetBtn">リセット</button>
-          <button id="finishBtn">強制終了</button>
-          <button id="jumpBtn">工程ジャンプ</button>
-          <button id="fsBtn" class="alt">全画面</button>
-        </div>
-      </section>
+<h1>時計表示項目等２</h1>
 
-      <!-- 設定パネル -->
-      <section class="panel">
-        <div class="row-between"><h1>設定</h1></div>
-        <div class="row" style="gap:8px;display:flex">
-          <div style="flex:1" class="field"><label>開始</label><input id="startTime" type="time" value="11:00" step="1"></div>
-          <div style="flex:1" class="field"><label>終了</label><input id="endTime" type="time" value="16:00" step="1"></div>
-        </div>
+<div class="clock" id="clock"></div>
 
-        <div class="field">
-          <label>スケジュール（先頭の時刻だけ採用。ヘッダー行は無視）</label>
-          <textarea id="scheduleText">開始時刻	項目
-11:00	ステップⅠ・Ⅱ読み取り(40 分)
-11:40	ステップⅢ　　エスキス(30 分)
-12:10	ステップⅣ エスキスチェック(30 分)
-12:40	ステップⅤ 計画の要点等(10 分)
-12:50	文字パート(15 分)
-13:05	平面図手順10まで(50 分) チェック込
-13:55	伏図手順10まで(20 分) チェック込
-14:15	立面図手順5まで(10 分)
-14:25	矩計図手順15まで(40 分)
-15:05	図面チェック(10 分)
-15:15	平面図手順11～15(45 分)最終チェック</textarea>
-          <div class="note">※ 終了時刻（右の「終了」入力）に合わせて <b>「終了」</b> を自動で追加します（例：16:00）。</div>
-          <div id="scheduleJumpWrap" class="sj-window"><div id="scheduleJump" aria-label="スケジュールからのジャンプ"></div></div>
-        </div>
-
-        <div class="row-wrap" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-          <label class="switch"><input id="speakOnStep" type="checkbox" checked> 工程開始時に読み上げ</label>
-          <label class="switch"><input id="chimeOnStep" type="checkbox" checked> 工程開始時にチャイム</label>
-          <label class="switch"><input id="speakOnStart" type="checkbox" checked> 開始時に読み上げ</label>
-          <label class="switch"><input id="chimeOnStart" type="checkbox" checked> 開始時にチャイム</label>
-          <label class="switch"><input id="speakOnEnd" type="checkbox" checked> 終了時に読み上げ</label>
-          <label class="switch"><input id="chimeOnEnd" type="checkbox" checked> 終了時にチャイム</label>
-          <label class="switch"><input id="enableJump" type="checkbox" checked> 工程ジャンプを有効化</label>
-          <label class="switch"><input id="classicUI" type="checkbox"> クラシックUI（旧版寄せ）</label>
-          <label class="switch"><input id="debugEnable" type="checkbox"> デバッグ表示</label>
-        </div>
-
-        <div class="field">
-          <label>読み上げ辞書（任意） <span class="note">「用語=よみ」の形式で1行ずつ。</span></label>
-          <textarea id="speechDict">矩計図=かなばかりず
-伏図=ふせず
-立面図=りつめんず
-エスキス=えすきす</textarea>
-        </div>
-
-        <div class="row" style="margin-top:6px;gap:8px;align-items:center;display:flex">
-          <button id="testSpeak">テスト読み上げ</button>
-          <button id="testChime">テストチャイム</button>
-          <button id="envCheck">環境チェック</button>
-          <span class="note">※チャイムは端末の音量設定に依存します。</span>
-        </div>
-
-        <div id="debugPane" style="display:none;margin-top:10px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:#0b1020;padding:8px;max-height:180px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap"></div>
-      </section>
-    </div>
-  </div>
-
-  <!-- 検索付きジャンプモーダル -->
-  <div id="jumpModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="jumpTitle" style="display:none">
-    <div class="panel" style="max-width:640px;margin:40px auto">
-      <h3 id="jumpTitle" style="margin:0 0 6px;font-size:16px">工程ジャンプ</h3>
-      <div class="row" style="gap:8px;margin:6px 0 10px 0;display:flex;align-items:center">
-        <input id="jumpFilter" type="text" placeholder="検索（時刻・キーワード）" style="flex:1">
-        <label class="switch"><input id="jumpPause" type="checkbox" checked> ジャンプ後に一時停止</label>
-        <button id="jumpClose">閉じる</button>
-      </div>
-      <ol id="jumpList" class="list" style="max-height:38vh;overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px;background:#0b1020"></ol>
-    </div>
-  </div>
+<table>
+<tr><th>時間</th><th>項目</th></tr>
+<tr><td>11:00</td><td>開始</td></tr>
+<tr><td>11:30</td><td>項目1</td></tr>
+<tr><td>12:00</td><td>項目2</td></tr>
+<tr><td>12:30</td><td>項目3</td></tr>
+<tr><td>13:00</td><td>項目4</td></tr>
+<tr><td>14:00</td><td>項目5</td></tr>
+<tr><td>15:00</td><td>項目6</td></tr>
+<tr><td>16:00</td><td>終了</td></tr>
+</table>
 
 <script>
-/************** ユーティリティ **************/
-const pad=n=>String(n).padStart(2,'0');
-const hmsToSec=hms=>{const a=String(hms).replace(/：/g,':').split(':').map(Number);return (a[0]||0)*3600+(a[1]||0)*60+(a[2]||0)};
-const lines=t=>String(t).split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-const gc=el=>!!(el && el.checked);
-const escRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-
-/************** 読み上げ 正規化と辞書 **************/
-function parseSpeechDict(text){
-  const obj={};
-  String(text||'').split(/\r?\n/).forEach(line=>{
-    const m=line.match(/^\s*([^=]+?)\s*=\s*(.+?)\s*$/);
-    if(m){ obj[m[1]] = m[2]; }
-  });
-  return obj;
+function updateClock(){
+const now=new Date();
+document.getElementById("clock").innerText=
+now.toLocaleTimeString("ja-JP");
 }
-function normalizeForSpeechJa(text){
-  let t = String(text||'');
-  // 1) ユーザー辞書優先
-  try{
-    if(window.__speechDict && Object.keys(window.__speechDict).length){
-      for(const [k,v] of Object.entries(window.__speechDict)){
-        if(!k) continue; const re = new RegExp(escRegExp(k),'g'); t = t.replace(re, v);
-      }
-    }
-  }catch(_){ }
-  // 2) ローマ数字だけ数値化
-  const map = {'Ⅰ':'1','Ⅱ':'2','Ⅲ':'3','Ⅳ':'4','Ⅴ':'5','Ⅵ':'6','Ⅶ':'7','Ⅷ':'8','Ⅸ':'9','Ⅹ':'10','Ⅺ':'11','Ⅻ':'12','ⅰ':'1','ⅱ':'2','ⅲ':'3','ⅳ':'4','ⅴ':'5','ⅵ':'6','ⅶ':'7','ⅷ':'8','ⅸ':'9','ⅹ':'10'};
-  t = t.split('').map(ch=> map[ch] ?? ch).join('');
-  // 3) 中黒の連続だけ読点に（単発は残す）
-  t = t.replace(/[・･]{2,}/g,'、');
-  return t.trim();
-}
-function speakJa(text){
-  try{
-    if(!('speechSynthesis' in window)) return;
-    const norm = normalizeForSpeechJa(text);
-    const u=new SpeechSynthesisUtterance(String(norm));
-    u.lang='ja-JP'; u.rate=1; u.pitch=1; u.volume=1;
-    window.speechSynthesis.speak(u);
-  }catch(e){}
-}
-function speak(txt){ speakJa(txt); }
-let audioCtx=null;
-function playChime(){ try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)(); const now=audioCtx.currentTime; const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type='sine'; o.frequency.setValueAtTime(880, now); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.3, now+0.02); g.gain.exponentialRampToValueAtTime(0.0001, now+0.7); o.connect(g).connect(audioCtx.destination); o.start(now); o.stop(now+0.72);}catch(e){} }
-
-/************** DOM 参照 **************/
-let canvas, ctx, C=0, R=0;
-let display, hhmm, titleLabel, remainLabel, remainEl, elapsedEl;
-let startBtn, pauseBtn, resumeBtn, resetBtn, finishBtn, fsBtn;
-let startTimeInput, endTimeInput, scheduleText, scheduleJump, jumpBtn, jumpModal, jumpList, jumpFilter, jumpClose, jumpPause;
-let speakOnStep, chimeOnStep, speakOnStart, chimeOnStart, speakOnEnd, chimeOnEnd, enableJump, classicUI, debugEnable, debugPane, speechDictEl;
-
-/************** 状態管理 **************/
-let startAt=hmsToSec('11:00:00');
-let endAt=hmsToSec('16:00:00');
-let currentVirtualSec=startAt, startBaseSec=startAt;
-let running=false, paused=false;
-let startReal=0, pausedAccum=0, lastPauseAt=0, rafId=null;
-let dragging=false, activePointer=null, rectCache=null, dragLastAngle=null;
-let schedule=[], scheduleSec=[], lastActiveIdx=-1, endedAnnounced=false, startedAnnounced=false;
-let lastSpokenStepIdx=-2;
-
-/************** 終了前アナウンス **************/
-const ANN_THRESHOLDS = [3600,1800,900,600,300,180,120,60];
-let firedAnnounces=new Set();
-function resetAnnounces(){ firedAnnounces=new Set(); }
-function announceRemaining(remainSec){ const r=Math.floor(remainSec); if(r<=0) return; if(ANN_THRESHOLDS.includes(r)&&!firedAnnounces.has(r)){ firedAnnounces.add(r); const msg=r>=60?`終了まで残り ${Math.floor(r/60)} 分です`:`終了まで残り ${r} 秒です`; speakJa(msg);} }
-
-/************** 現在時刻表示 **************/
-function updateNowClock(){ const now=new Date(); const hh=pad(now.getHours()),mm=pad(now.getMinutes()),ss=pad(now.getSeconds()); const el=document.getElementById('nowClock'); if(el) el.textContent=`${hh}:${mm}:${ss}`; }
-setInterval(updateNowClock,1000);
-
-/************** スケジュール **************/
-function parseSchedule(text){ const out=[]; lines(text).forEach(ln=>{ if(/^開始時刻/.test(ln)) return; const m=ln.match(/^\s*(\d{1,2}[:：]\d{2}(?::\d{2})?)\s*[,，;；、\s\t-]+(.+)$/); if(!m) return; const t=m[1].replace(/：/g,':'); out.push({time:t.length===5?t+':00':t,item:m[2]}); }); out.sort((a,b)=>hmsToSec(a.time)-hmsToSec(b.time)); return out; }
-function ensureEndStep(){ const endStr=(endTimeInput.value.length===5? endTimeInput.value+':00' : endTimeInput.value); const endSec=hmsToSec(endStr||'16:00:00'); const hasSame=schedule.some(r=>hmsToSec(r.time)===endSec); if(!hasSame){ schedule.push({time:endStr||'16:00:00', item:'終了'}); schedule.sort((a,b)=>hmsToSec(a.time)-hmsToSec(b.time)); } }
-function buildScheduleSec(){ scheduleSec=schedule.map(r=>hmsToSec(r.time)); }
-function shortTimeLabel(hms){ const a=hms.split(':'),h=a[0],m=a[1],s=a[2]; return (!s||s==='00')? (h+':'+m) : (h+':'+m+':'+s) }
-function getActiveStepIndex(virtual){ if(!scheduleSec.length) return -1; let lo=0,hi=scheduleSec.length-1,ans=-1; while(lo<=hi){ const mid=(lo+hi)>>1; if(scheduleSec[mid]<=virtual){ans=mid;lo=mid+1;} else hi=mid-1;} return ans; }
-function renderScheduleJump(){ const html=schedule.map((r,idx)=>(`<button class="sj-chip" data-idx="${idx}" type="button"><time>${shortTimeLabel(r.time)}</time><span>${(r.item||'').replaceAll('<','&lt;').replaceAll('>','&gt;')}</span></button>`)).join(''); scheduleJump.innerHTML=html; }
-function highlightScheduleChip(idx){ scheduleJump.querySelectorAll('.sj-chip').forEach((el,i)=>{ el.classList.toggle('active', i===idx); }); }
-
-/************** アナログ時計 **************/
-function resizeCanvas(){ const wrap=document.getElementById('analogWrap'); let w=wrap?wrap.clientWidth:0, h=wrap?wrap.clientHeight:0; let size=Math.min(w||0,h||0); if(!size||size<20){ size=240; } const dpr=window.devicePixelRatio||1; canvas.width=Math.round(size*dpr); canvas.height=Math.round(size*dpr); canvas.style.width=size+'px'; canvas.style.height=size+'px'; C=canvas.width/2; R=C-10*dpr; if(ctx&&ctx.setTransform) ctx.setTransform(1,0,0,1,0,0); }
-function drawClock(h,m,s){ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.save(); ctx.translate(C,C); // 盤
-  ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#000'; ctx.stroke();
-  // 目盛
-  for(let i=0;i<60;i++){ const ang=i*Math.PI/30; ctx.save(); ctx.rotate(ang); ctx.beginPath(); ctx.moveTo(0,-(R-5)); ctx.lineTo(0,-(i%5===0? R-18: R-10)); ctx.lineWidth=i%5===0?2:1; ctx.strokeStyle='#000'; ctx.stroke(); ctx.restore(); }
-  // 数字
-  ctx.fillStyle='#000'; ctx.textBaseline='middle'; ctx.textAlign='center'; ctx.font='bold '+parseInt(R*0.3)+'px system-ui';
-  for(let n=1;n<=12;n++){ const a=n*Math.PI/6; const x=Math.sin(a)*(R*0.72), y=-Math.cos(a)*(R*0.72); ctx.fillText(String(n),x,y); }
-  // 針
-  const H=(h%12)*Math.PI/6 + (m*Math.PI)/(6*60) + (s*Math.PI)/(360*60);
-  const M=(m*Math.PI)/30 + (s*Math.PI)/(30*60);
-  const S=(s*Math.PI)/30;
-  ctx.lineCap='round';
-  ctx.beginPath(); ctx.lineWidth=12; ctx.strokeStyle='#000'; ctx.rotate(H); ctx.moveTo(0,0); ctx.lineTo(0,-R*0.52); ctx.stroke(); ctx.rotate(-H);
-  ctx.beginPath(); ctx.lineWidth=9;  ctx.strokeStyle='#000'; ctx.rotate(M); ctx.moveTo(0,0); ctx.lineTo(0,-R*0.76); ctx.stroke(); ctx.rotate(-M);
-  ctx.beginPath(); ctx.lineWidth=2;  ctx.strokeStyle='red'; ctx.rotate(S); ctx.moveTo(0,0); ctx.lineTo(0,-R*0.84); ctx.stroke(); ctx.rotate(-S);
-  ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); ctx.restore(); }
-function setDigitalHMS(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); hhmm.textContent=pad(h)+':'+pad(m); document.querySelector('#display .sec').textContent=':'+pad(s); }
-
-/************** タイマー表示更新 **************/
-function renderHMSHTML(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; const base=(h>0?`${h}:${pad(m)}`:`${m}`); return `${base}<span class="secSmall">:${pad(s)}</span>`; }
-function updateTimers(startSec,endSec,nowSec){
-  const elapsed=Math.max(0,nowSec-startSec); elapsedEl.innerHTML=renderHMSHTML(elapsed);
-  const remain=endSec-nowSec;
-  if(remain>=0){ remainLabel.textContent='残り：'; remainEl.classList.remove('overtime'); remainEl.innerHTML=renderHMSHTML(remain);} else { remainLabel.textContent='超過：'; remainEl.classList.add('overtime'); remainEl.innerHTML=renderHMSHTML(-remain); }
-  // 工程残り
-  let nextBoundarySec; const idx=getActiveStepIndex(nowSec);
-  if(idx<0){ nextBoundarySec=scheduleSec.length?scheduleSec[0]:endSec; }
-  else{ nextBoundarySec=(idx+1<scheduleSec.length)?scheduleSec[idx+1]:endSec; }
-  const stepRemain=nextBoundarySec-nowSec;
-  const stepRemainEl=document.getElementById('stepRemain'); const stepRemainLabelEl=document.getElementById('stepRemainLabel');
-  if(stepRemainEl&&stepRemainLabelEl){
-    if(stepRemain>=0){ stepRemainLabelEl.textContent='工程残り：'; stepRemainEl.classList.remove('overtime'); stepRemainEl.innerHTML=renderHMSHTML(stepRemain); }
-    else{ stepRemainLabelEl.textContent='工程超過：'; stepRemainEl.classList.add('overtime'); stepRemainEl.innerHTML=renderHMSHTML(-stepRemain); }
-  }
-  // 終了前アナウンス
-  announceRemaining(remain);
-}
-
-/************** UI/状態 更新 **************/
-function updateActiveStep(v,announce){
-  const idx=getActiveStepIndex(v);
-  if(!running){ const st=(startTimeInput&&startTimeInput.value)?startTimeInput.value:'11:00'; titleLabel.textContent='開始時刻 '+st; highlightScheduleChip(idx); return; }
-  if(idx!==lastActiveIdx){
-    lastActiveIdx=idx; let label;
-    if(idx>=0){ label=shortTimeLabel(schedule[idx].time)+'\u3000'+(schedule[idx].item||''); }
-    else{ label='開始時刻 '+((startTimeInput&&startTimeInput.value)?startTimeInput.value:'11:00'); }
-    titleLabel.textContent=label; highlightScheduleChip(idx);
-  }
-  if(announce&&idx>=0&&idx!==lastSpokenStepIdx){ lastSpokenStepIdx=idx; if(speakOnStep&&speakOnStep.checked) speak(schedule[idx].item||''); if(chimeOnStep&&chimeOnStep.checked) playChime(); }
-}
-function tick(){ updateUI(); rafId=requestAnimationFrame(tick); }
-function updateUI(){
-  const now=performance.now(); let el=0;
-  if(!running) el=0; else if(paused) el=(lastPauseAt-startReal)-pausedAccum; else el=(now-startReal)-pausedAccum;
-  if(el<0) el=0; const sec=Math.floor(el/1000); const v=startBaseSec+sec; currentVirtualSec=v;
-  setDigitalHMS(v); drawClock(Math.floor(v/3600),Math.floor((v%3600)/60),Math.floor(v%60));
-  if(!startedAnnounced && v>=startAt){ startedAnnounced=true; if(speakOnStart&&speakOnStart.checked) speak('開始します'); if(chimeOnStart&&chimeOnStart.checked) playChime(); }
-  updateActiveStep(v,true); updateTimers(startAt,endAt,v);
-  if(v>=endAt && !endedAnnounced){ endedAnnounced=true; document.body.classList.add('ended'); if(speakOnEnd&&speakOnEnd.checked) speak('終了しました'); if(chimeOnEnd&&chimeOnEnd.checked) playChime(); }
-}
-
-/************** ドラッグ（長針調整） **************/
-function angleFromEvent(ev){ const rect=rectCache||(rectCache=canvas.getBoundingClientRect()); const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2; const p=ev.touches?ev.touches[0]:ev; const x=p.clientX-cx, y=p.clientY-cy; return Math.atan2(x,-y); }
-function setVirtualTime(tSec){ tSec=Math.max(0,Math.min(endAt,tSec)); const now=performance.now(); currentVirtualSec=tSec; if(running){ if(paused){ lastPauseAt=startReal+pausedAccum+(tSec-startBaseSec)*1000; } else { startReal=now-(pausedAccum+(tSec-startBaseSec)*1000); } } else { setDigitalHMS(tSec); drawClock(Math.floor(tSec/3600),Math.floor((tSec%3600)/60),Math.floor(tSec%60)); updateTimers(startAt,endAt,tSec);} updateActiveStep(tSec,false); }
-function startDrag(ev){ ev.preventDefault(); dragging=true; activePointer=ev.pointerId; try{ canvas.setPointerCapture&&canvas.setPointerCapture(ev.pointerId) }catch(e){} rectCache=null; dragLastAngle=angleFromEvent(ev); }
-function moveDrag(ev){ if(!dragging) return; const ang=angleFromEvent(ev); if(dragLastAngle==null){ dragLastAngle=ang; return; } let d=ang-dragLastAngle; if(d>Math.PI) d-=Math.PI*2; else if(d<-Math.PI) d+=Math.PI*2; const minutesDelta=Math.round(d/(Math.PI*2)*60); if(minutesDelta!==0){ const newSec=currentVirtualSec+minutesDelta*60; setVirtualTime(newSec); dragLastAngle=ang; } }
-function endDrag(){ dragging=false; try{ if(activePointer!=null) canvas.releasePointerCapture&&canvas.releasePointerCapture(activePointer) }catch(e){} activePointer=null; dragLastAngle=null; }
-
-/************** ジャンプ **************/
-function renderJumpList(q){ const query=(q||'').toLowerCase(); const items=schedule.map((r,idx)=>({idx,time:r.time,item:r.item})).filter(r=> r.time.indexOf(query)>-1 || String(r.item||'').toLowerCase().indexOf(query)>-1 ); jumpList.innerHTML=items.map(r=>`<li data-idx="${r.idx}" style="padding:6px 8px;display:flex;gap:10px;align-items:center;cursor:pointer"><time style="min-width:64px">${shortTimeLabel(r.time)}</time><span>${r.item||''}</span></li>`).join(''); }
-function openJump(){ if(!(enableJump?enableJump.checked:true)) return; if(!schedule.length){ updateScheduleFromInputs(); } renderJumpList(''); jumpFilter.value=''; jumpModal.style.display='flex'; setTimeout(()=>jumpFilter.focus(),0); }
-function closeJump(){ jumpModal.style.display='none'; }
-function jumpToIndex(i){ const r=schedule[i]; if(!r) return; const tSec=hmsToSec(r.time); titleLabel.textContent=shortTimeLabel(r.time)+'　'+r.item; if(speakOnStep&&speakOnStep.checked) speak(r.item||''); if(chimeOnStep&&chimeOnStep.checked) playChime(); const now=performance.now(); if(running){ if(paused){ lastPauseAt=startReal+pausedAccum+(tSec-startBaseSec)*1000; } else { startReal=now-(pausedAccum+(tSec-startBaseSec)*1000); } } currentVirtualSec=tSec; setDigitalHMS(tSec); drawClock(Math.floor(tSec/3600),Math.floor((tSec%3600)/60),Math.floor(tSec%60)); updateActiveStep(tSec,false); const wantPause=jumpPause&&jumpPause.checked; if(wantPause&&running&&!paused){ paused=true; lastPauseAt=performance.now(); pauseBtn.disabled=true; resumeBtn.disabled=false; } closeJump(); }
-
-/************** コントロール **************/
-function start(){ resetAnnounces(); startAt=hmsToSec(startTimeInput.value.length===5? startTimeInput.value+':00':startTimeInput.value); endAt=hmsToSec(endTimeInput.value.length===5? endTimeInput.value+':00':endTimeInput.value); endedAnnounced=false; document.body.classList.remove('ended'); startBaseSec=currentVirtualSec; updateScheduleFromInputs(); updateActiveStep(startBaseSec,false); running=true; paused=false; startReal=performance.now(); pausedAccum=0; lastPauseAt=0; startedAnnounced=(startBaseSec>=startAt); lastSpokenStepIdx=-2; startBtn.disabled=true; pauseBtn.disabled=false; resumeBtn.disabled=true; tick(); }
-function pause(){ if(!running||paused) return; paused=true; lastPauseAt=performance.now(); pauseBtn.disabled=true; resumeBtn.disabled=false; }
-function resume(){ if(!running||!paused) return; paused=false; pausedAccum+=performance.now()-lastPauseAt; lastPauseAt=0; pauseBtn.disabled=false; resumeBtn.disabled=true; }
-function reset(){ running=false; paused=false; cancelAnimationFrame(rafId); startBtn.disabled=false; pauseBtn.disabled=true; resumeBtn.disabled=true; const st=(startTimeInput.value.length===5?startTimeInput.value+':00':startTimeInput.value); const stSec=hmsToSec(st); currentVirtualSec=stSec; startBaseSec=currentVirtualSec; setDigitalHMS(stSec); drawClock(Math.floor(stSec/3600),Math.floor((stSec%3600)/60),Math.floor(stSec%60)); updateScheduleFromInputs(); updateActiveStep(stSec,false); updateTimers(stSec,hmsToSec((endTimeInput.value.length===5?endTimeInput.value+':00':endTimeInput.value)),stSec); document.body.classList.remove('ended'); endedAnnounced=false; startedAnnounced=false; lastActiveIdx=-1; lastSpokenStepIdx=-2; resetAnnounces(); }
-function finishNow(){ const now=performance.now(); running=true; paused=false; startReal=now-(pausedAccum+(endAt-startBaseSec)*1000); setTimeout(()=>{endedAnnounced=false; updateUI();},0); }
-
-/************** スケジュールUI反映 **************/
-function updateScheduleFromInputs(){ schedule=parseSchedule(scheduleText.value); ensureEndStep(); buildScheduleSec(); renderScheduleJump(); scheduleJump.querySelectorAll('.sj-chip').forEach(btn=>{ btn.addEventListener('click',()=>{ const idx=+btn.dataset.idx; jumpToIndex(idx); }, {passive:true}); }); resetAnnounces(); }
-
-/************** 初期化 **************/
-function bindDOM(){
-  canvas=document.getElementById('analogClock'); ctx=canvas.getContext('2d');
-  display=document.getElementById('display'); hhmm=document.getElementById('hhmm'); titleLabel=document.getElementById('titleLabel');
-  remainLabel=document.getElementById('remainLabel'); remainEl=document.getElementById('remain'); elapsedEl=document.getElementById('elapsed');
-  startBtn=document.getElementById('startBtn'); pauseBtn=document.getElementById('pauseBtn'); resumeBtn=document.getElementById('resumeBtn'); resetBtn=document.getElementById('resetBtn'); finishBtn=document.getElementById('finishBtn');
-  startTimeInput=document.getElementById('startTime'); endTimeInput=document.getElementById('endTime');
-  scheduleText=document.getElementById('scheduleText'); scheduleJump=document.getElementById('scheduleJump');
-  jumpBtn=document.getElementById('jumpBtn'); jumpModal=document.getElementById('jumpModal'); jumpList=document.getElementById('jumpList');
-  jumpFilter=document.getElementById('jumpFilter'); jumpClose=document.getElementById('jumpClose'); jumpPause=document.getElementById('jumpPause');
-  fsBtn=document.getElementById('fsBtn');
-  speakOnStep=document.getElementById('speakOnStep'); chimeOnStep=document.getElementById('chimeOnStep');
-  speakOnStart=document.getElementById('speakOnStart'); chimeOnStart=document.getElementById('chimeOnStart');
-  speakOnEnd=document.getElementById('speakOnEnd'); chimeOnEnd=document.getElementById('chimeOnEnd');
-  enableJump=document.getElementById('enableJump'); classicUI=document.getElementById('classicUI'); debugEnable=document.getElementById('debugEnable'); debugPane=document.getElementById('debugPane');
-  speechDictEl=document.getElementById('speechDict');
-
-  if(startTimeInput){ startTimeInput.addEventListener('change', ()=>updateActiveStep(currentVirtualSec,false)); }
-  if(jumpBtn) jumpBtn.addEventListener('click', openJump);
-  if(jumpClose) jumpClose.addEventListener('click', closeJump);
-  if(jumpList) jumpList.addEventListener('click', (e)=>{ const li=e.target.closest('li'); if(!li) return; jumpToIndex(+li.dataset.idx); });
-  if(jumpFilter) jumpFilter.addEventListener('input', ()=>renderJumpList(jumpFilter.value));
-  if(fsBtn){ fsBtn.addEventListener('click',()=>{ const el=document.getElementById('displayPanel'); if(!document.fullscreenElement){ el.requestFullscreen&&el.requestFullscreen(); fsBtn.textContent='全画面解除'; } else { document.exitFullscreen&&document.exitFullscreen(); fsBtn.textContent='全画面'; } }); }
-  if(classicUI){ classicUI.addEventListener('change', ()=>{ document.body.classList.toggle('classic', classicUI.checked); }); }
-
-  if(speechDictEl){
-    window.__speechDict = parseSpeechDict(speechDictEl.value);
-    speechDictEl.addEventListener('input', ()=>{ window.__speechDict = parseSpeechDict(speechDictEl.value); });
-  }
-
-  const btnSpeak=document.getElementById('testSpeak'); if(btnSpeak) btnSpeak.addEventListener('click',()=>speakJa('読み上げテストです'));
-  const btnChime=document.getElementById('testChime'); if(btnChime) btnChime.addEventListener('click',()=>playChime());
-  const btnEnv=document.getElementById('envCheck'); if(btnEnv) btnEnv.addEventListener('click',()=>{
-    const okSpeech = !!window.speechSynthesis;
-    const okAudio = !!(window.AudioContext || window.webkitAudioContext);
-    alert(`speechSynthesis: ${okSpeech?'OK':'NG'}\nAudioContext: ${okAudio?'OK':'NG'}\n（iPad Safari は最初の再生にタップが必要な場合があります）`);
-  });
-}
-
-function init(){
-  bindDOM();
-  startBtn.addEventListener('click',start); pauseBtn.addEventListener('click',pause); resumeBtn.addEventListener('click',resume); resetBtn.addEventListener('click',reset); finishBtn.addEventListener('click',finishNow);
-  scheduleText.addEventListener('input', updateScheduleFromInputs); endTimeInput.addEventListener('change', updateScheduleFromInputs);
-  resizeCanvas(); window.addEventListener('resize',()=>{ rectCache=null; resizeCanvas(); });
-  const st=(startTimeInput.value.length===5?startTimeInput.value+':00':startTimeInput.value); const sec=hmsToSec(st);
-  currentVirtualSec=sec; startBaseSec=currentVirtualSec; setDigitalHMS(sec); drawClock(Math.floor(sec/3600), Math.floor((sec%3600)/60), Math.floor(sec%60)); updateScheduleFromInputs(); updateActiveStep(sec,false); updateTimers(sec, hmsToSec((endTimeInput.value.length===5?endTimeInput.value+':00':endTimeInput.value)), sec);
-  canvas.addEventListener('pointerdown',startDrag); window.addEventListener('pointermove',moveDrag); window.addEventListener('pointerup',endDrag); canvas.addEventListener('pointerleave',endDrag);
-  canvas.addEventListener('touchstart',startDrag,{passive:false}); window.addEventListener('touchmove',moveDrag,{passive:false}); window.addEventListener('touchend',endDrag);
-  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js'); }
-}
-
-window.addEventListener('error',(e)=>{ try{const fb=document.getElementById('fatalBanner'); const fm=document.getElementById('fatalMsg'); if(fb&&fm){ fb.style.display='block'; fm.textContent=`${e.message} @ ${e.lineno}:${e.colno}`; }}catch(_){} });
-document.addEventListener('DOMContentLoaded', init);
+setInterval(updateClock,1000);
+updateClock();
 </script>
+
 </body>
 </html>
