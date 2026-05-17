@@ -3,63 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>時計表示項目等2</title>
+<title>模擬試験タイマー</title>
 <style>
-body{
-font-family:Arial,sans-serif;
-background:#111;
-color:white;
-text-align:center;
-padding:20px;
-}
-h1{font-size:40px}
-table{
-margin:auto;
-border-collapse:collapse;
-width:80%;
-}
-td,th{
-border:1px solid #666;
-padding:12px;
-font-size:28px;
-}
-tr:nth-child(even){
-background:#222;
-}
-.clock{
-font-size:60px;
-color:#00ff88;
-margin:20px;
-}
+body{margin:0;background:#0b1020;color:white;font-family:system-ui,sans-serif;text-align:center}
+.wrap{max-width:960px;margin:20px auto;padding:12px}
+.clock{font-size:72px;font-weight:800;margin:18px 0;color:#7ecfff}
+.card{background:#141a2f;border:1px solid #333;border-radius:14px;padding:14px;margin:10px 0;text-align:left}
+.time{font-size:26px;color:#9fdcff;font-weight:700}
+.item{font-size:30px;margin-top:6px}
+.now{background:#163b2a;border-color:#00ff88}
+.done{opacity:.45}
 </style>
 </head>
 <body>
-
-<h1>時計表示項目等２</h1>
-
-<div class="clock" id="clock"></div>
-
-<table>
-<tr><th>時間</th><th>項目</th></tr>
-<tr><td>11:00</td><td>開始</td></tr>
-<tr><td>11:30</td><td>項目1</td></tr>
-<tr><td>12:00</td><td>項目2</td></tr>
-<tr><td>12:30</td><td>項目3</td></tr>
-<tr><td>13:00</td><td>項目4</td></tr>
-<tr><td>14:00</td><td>項目5</td></tr>
-<tr><td>15:00</td><td>項目6</td></tr>
-<tr><td>16:00</td><td>終了</td></tr>
-</table>
+<div class="wrap">
+<h1>模擬試験タイマー</h1>
+<div class="clock" id="clock">--:--:--</div>
+<div id="list"></div>
+</div>
 
 <script>
-function updateClock(){
-const now=new Date();
-document.getElementById("clock").innerText=
-now.toLocaleTimeString("ja-JP");
-}
-setInterval(updateClock,1000);
-updateClock();
-</script>
+const items=[
+["11:00","ステップⅠ・Ⅱ 読み取り(40 分)"],
+["11:40","ステップⅢ　エスキスをイメージ(20 分)"],
+["12:00","ステップⅣ　エスキスとチェック(50 分)"],
+["12:50","ステップⅤ 計画の要点等(10 分)"],
+["13:00","文字パート(15 分)"],
+["13:15","平面図手順10まで(40 分)（作図10項目確認込み）"],
+["13:55","伏図手順10まで(20 分)（作図10項目確認込み）"],
+["14:15","立面図手順5まで(10 分)"],
+["14:25","矩計図手順15まで(40 分)"],
+["15:05","図面チェック(10 分)"],
+["15:15","平面図手順11～15(45 分)最終チェック"]
+];
 
+function minOf(t){
+const [h,m]=t.split(":").map(Number);
+return h*60+m;
+}
+
+function update(){
+const now=new Date();
+document.getElementById("clock").textContent=
+now.toLocaleTimeString("ja-JP",{hour12:false});
+
+const nowMin=now.getHours()*60+now.getMinutes();
+let html="";
+for(let i=0;i<items.length;i++){
+const start=minOf(items[i][0]);
+const end=i<items.length-1 ? minOf(items[i+1][0]) : 16*60;
+let cls="card";
+if(nowMin>=start && nowMin<end) cls+=" now";
+if(nowMin>=end) cls+=" done";
+html+=`<div class="${cls}"><div class="time">${items[i][0]}</div><div class="item">${items[i][1]}</div></div>`;
+}
+document.getElementById("list").innerHTML=html;
+}
+setInterval(update,1000);
+update();
+</script>
+</body>
+</html>
 </body>
 </html>
